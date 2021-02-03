@@ -188,17 +188,17 @@ AWS_EC2_INSTANCE_ID=$(aws --profile wp-setup ec2 run-instances \
 --user-data file://ec2.startup.txt \
 --private-ip-address 10.0.1.10 \
 --query 'Instances[0].InstanceId' \
---output text)
+--output text) &> /dev/null
 printf "o   instance started: $AWS_EC2_INSTANCE_ID\n"
 
 printf "o assigning tags\n"
 aws ec2 --profile wp-setup create-tags \
 --resources $AWS_EC2_INSTANCE_ID \
---tags "Key=Name,Value=$project-ec2-instance"
+--tags "Key=Name,Value=$project-ec2-instance" &> /dev/null
 
 AWS_EC2_INSTANCE_PUBLIC_IP=$(aws ec2 describe-instances \
 --query "Reservations[*].Instances[*].PublicIpAddress" \
---output=text) &&
+--output=text) &> /dev/null
 
 echo "EC2 Instance Public IP: $AWS_EC2_INSTANCE_PUBLIC_IP\n"
 
@@ -209,6 +209,10 @@ echo "EC2 Instance Public IP: $AWS_EC2_INSTANCE_PUBLIC_IP\n"
 ##########################################
 printf "[4/6]    Creating database for '$project'\n"
 # create "$project-db-user"
+# create the database
+# import WP tables
+# create a development replica
+# prefill the details (ie. development IP address, live IP/domain etc)
 
 
 ##########################################
@@ -219,43 +223,19 @@ printf "[4/6]    Creating database for '$project'\n"
 printf "[5/6]    Creating S3 bucket for '$project'\n"
 # create "$project-s3-user"
 
-#     -- Public Usage (Read) -- 
-# {
-#	"Version": "2008-10-17",
-#	"Statement": [
-#	{
-#		"Sid": "AllowPublicRead",
-#		"Effect": "Allow",
-#		"Principal": {
-#			"AWS": "*"
-#		},
-#		"Action": "s3:GetObject",
-#		"Resource": "arn:aws:s3:::$bucketname/*"
-#	}
-#	]
-#}
+# setup wordpress (admin, read / write) user/role policy
+ADMIN_POLICY_ARN=$(aws --profile wp-setup iam create-policy 
+                       --policy-name "$project-bucket-admin"
+                       --policy-document file://./s3-admin-policy.json 
+                       --query 'Policy.Arn' 
+                       --output 'text') &> /dev/null
 
-#     -- WP Usage (Read/Write) -- 
-# {
-#	"Version": "2012-10-17",
-#	"Statement": [
-#	{
-#		"Effect": "Allow",
-#		"Action": [
-#			"s3:CreateBucket",
-#			"s3:DeleteObject",
-#			"s3:Put*",
-#			"s3:Get*",
-#			"s3:List*"
-#		],
-#		"Resource": [
-#			"arn:aws:s3:::$bucketname",
-#			"arn:aws:s3:::$bucketname/*"
-#		]
-#	}
-#	]
-#}
+# setup bucket public access policy
 
+# create a new service user with ADMIN_POLICY_ARN
+# return $project-service accessKeyId:accessKey
+#  or create a PHP file in the instance with the info
+#  or automatically update the instance database
 
 
 cleanup=false
